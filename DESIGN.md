@@ -17,7 +17,7 @@ logic and the handling of imperfect real-world data.
 
 ## Domain model
 
-### Transaction
+### Transaction Class
 
 Represents a single transaction as recorded in one source. The atomic unit the
 rest of the system operates on.
@@ -70,3 +70,41 @@ method genuinely overrides the inherited one, catching typos.
 
 - v1 matches on exact transaction ID only. Tolerance-based matching (small
   amount or date differences) and one-to-many matching are the natural next steps.
+
+## Break Class
+
+**What a break represents** Represents a single discrepancy found during reconciliation — one finding that a
+human will investigate, and one line in the final report.
+
+**Why it is not modelled on Transaction's fields**
+The instinct is to give a Break the same id/amount/date as a Transaction, but a
+Break is a different kind of thing: a *finding about* a transaction, not a
+transaction. Modelling it around the transaction's fields breaks down in two
+places. For a value mismatch, the whole point is that A and B disagree, so
+storing a single amount throws away half the information the investigator needs —
+they need both sides. For a missing transaction, the record only exists on one
+side, so there is no second value to store at all. So the class is modelled
+around what an investigator needs to act on the finding, not around the shape of
+a transaction.
+
+**Why the three fields (id, type, detail)**
+- `transactionId` — *what* is broken; without it the record can't be located.
+- `type` — *how* it is broken (missing from A, missing from B, or value
+  mismatch). The investigator handles each case completely differently, so this
+  drives the response.
+- `detail` — the *evidence*: a human-readable description of the specifics. It is
+  a free-form String so it can hold both sides for a mismatch
+  ("A: 500.00 vs B: 505.00") or a single side for a missing record — which solves
+  the problem that different break types need different information.
+
+**Why an enum for the type**
+There are exactly three kinds of break and no others — a closed, known set. An
+enum makes the compiler enforce that: an invalid or misspelled type won't
+compile, whereas a String literal like "MISSNG_FROM_B" would compile and then
+misbehave silently at runtime. The enum turns a potential runtime bug into a
+compile-time error, and documents the complete set of cases in one place.
+
+**Why immutable**
+A break is a recorded finding. Once produced it should not change, for the same
+reasons as Transaction: safety and predictability. Final fields, set once in the
+constructor.
