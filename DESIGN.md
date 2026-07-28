@@ -88,7 +88,7 @@ around what an investigator needs to act on the finding, not around the shape of
 a transaction.
 
 **Why the three fields (id, type, detail)**
-- `transactionId` — *what* is broken; without it the record can't be located.
+- `transactionId` — *what* uis broken; without it the record can't be located.
 - `type` — *how* it is broken (missing from A, missing from B, or value
   mismatch). The investigator handles each case completely differently, so this
   drives the response.
@@ -108,3 +108,51 @@ compile-time error, and documents the complete set of cases in one place.
 A break is a recorded finding. Once produced it should not change, for the same
 reasons as Transaction: safety and predictability. Final fields, set once in the
 constructor.
+
+### CsvReader
+
+Reads a CSV file and turns it into a list of parsed `Transaction` objects plus a
+list of rows it could not parse. Its single job is reading and parsing — nothing
+about matching.
+
+**Why reading is its own class (single responsibility)**
+Reading and matching are distinct jobs that change for distinct reasons: a change
+to the CSV format touches only the reader, while a change to the matching rules
+touches only the engine. Keeping them in separate classes means each can be
+tested in isolation — the reader against messy files, the engine against
+in-memory lists with no files involved — and either can be reused or changed
+without disturbing the other.
+
+**Why bad rows are collected and returned, not printed**
+When the reader hits a malformed row it does not print it or crash — it adds the
+raw line to a `badRows` list and carries on. Printing would force a policy: it
+would decide, on everyone's behalf, that a bad row goes to the console. But a
+caller might instead want to count bad rows, write them to a log, fold them into
+the reconciliation report, or ignore them silently. A low-level class should
+surface information and let the caller decide what to do with it. So `read`
+returns both lists and leaves the policy to whoever called it.
+
+**Why store the raw line rather than the row's id**
+The instinct is to store the bad row's id, but a row is "bad" precisely because it
+failed to parse — the id may be the very field that is missing or malformed, so
+it can't be relied upon. The one thing always available is the raw line text
+(plus its line number), which is also exactly what an investigator needs to see
+what went wrong. So a bad row is stored as its raw text with a line number.
+
+**Why return a ReadResult rather than two bare lists**
+A method returns one value, but reading produces two related results — the good
+transactions and the bad rows. Rather than abuse a Map with magic string keys,
+they are bundled in a small `ReadResult` object with two typed, named getters.
+This is self-documenting (a reader clearly produces transactions and bad rows),
+compiler-checked, and extensible if more fields are needed later.
+
+**War story: why this resilience matters**
+While wiring up the reader I accidentally saved the program's own output into
+`ledger.csv` instead of the transaction data, so the file contained lines like
+"Good transactions:" and "Bad rows:". The engine did not crash. It tried to parse
+each line, quarantined the ones it couldn't into `badRows`, and carried on — which
+is exactly the intended behaviour. Real ledger files are messy, and a
+reconciliation tool that falls over on one malformed line is useless. The bug also
+reinforced a debugging lesson: when output looks wrong, suspect the input as
+readily as the code — here every class was correct and the fault was entirely in
+the data file.
