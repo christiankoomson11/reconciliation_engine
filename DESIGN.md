@@ -156,3 +156,46 @@ reconciliation tool that falls over on one malformed line is useless. The bug al
 reinforced a debugging lesson: when output looks wrong, suspect the input as
 readily as the code — here every class was correct and the fault was entirely in
 the data file.
+
+### ReconciliationEngine
+
+The core of the system. Takes two lists of transactions (source A and source B)
+and produces a list of breaks.
+
+**Approach: index both sides, then two passes**
+Both sources are first indexed into HashMaps keyed by transaction id, so any id
+can be looked up in one step. Then:
+- Pass 1 walks source A. For each transaction it looks up the same id in B's map.
+  Not present -> MISSING_FROM_B. Present but a value differs -> VALUE_MISMATCH.
+  Present and equal -> a clean match, no break.
+- Pass 2 walks source B and looks up each id in A's map. Any id absent from A is
+  a MISSING_FROM_A break.
+
+**Why a HashMap index rather than nested loops (complexity)**
+The naive approach compares every transaction in A against every transaction in
+B — O(n^2). That does not scale: on large inputs it becomes unusably slow. I
+experienced this directly when a brute-force solution to LeetCode's Contains
+Duplicate hit Time Limit Exceeded. Indexing each source in a HashMap makes every
+lookup O(1), so the whole reconciliation runs in O(n). The engine never scans one
+list looking through the other; it looks each id up directly.
+
+**Why pass 2 only checks for absence**
+Every id that exists in both sources is already fully examined in pass 1 (matched
+or value-mismatch). So pass 2's only remaining job is to find ids that exist in B
+but never appeared in A. It deliberately does not re-compare values — doing so
+would report every mismatch twice, once from each side.
+
+**Why compareTo for amounts but equals for dates**
+Amounts are BigDecimal and are compared with compareTo(...) == 0, because
+BigDecimal.equals is scale-sensitive: "500.0" and "500.00" are equal in value but
+not equal by equals, which would produce phantom breaks when two sources format
+the same figure differently. Dates are LocalDate and compared with equals, which
+is safe because dates have no equivalent scale trap. A mismatch is flagged if the
+amount OR the date differs.
+
+**Known limitations / future work**
+v1 matches on exact transaction id only. It cannot yet handle real-world cases
+such as amounts differing by a rounding penny, the same
+trade settling a day apart on each side (timing breaks), or one payment on one
+side corresponding to several line items on the other (one-to-many matching).
+These are the natural next steps.
