@@ -22,8 +22,7 @@ public class Main {
         System.out.println("Breaks found: " + breaks.size());
         System.out.println();
 
-        for (Break b : breaks) {
-            System.out.println(" " + b);
+        for (Break b : breaks) {            System.out.println(" " + b);
         }
     }
 }

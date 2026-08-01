@@ -23,6 +23,6 @@ public class Break {
 
     @Override
     public String toString() {
-        return "[" + type + "]" + transactionId + " -> " + detail;
+        return "[ " + type + " ]" + transactionId + " -> " + detail;
     }
 }
