@@ -199,3 +199,36 @@ such as amounts differing by a rounding penny, the same
 trade settling a day apart on each side (timing breaks), or one payment on one
 side corresponding to several line items on the other (one-to-many matching).
 These are the natural next steps.
+
+## Testing
+
+The reconciliation logic is covered by unit tests using JUnit
+(`ReconciliationEngineTest`).
+
+**What is tested**
+Four cases, one per branch of the engine's logic:
+- Two identical sources produce no breaks (the clean-match path).
+- A shared id with a differing amount is detected as a VALUE_MISMATCH.
+- An id present only in source A is detected as MISSING_FROM_B.
+- An id present only in source B is detected as MISSING_FROM_A.
+
+**Why these cases**
+Together they exercise every path through `reconcile`: the match path and all
+three break types. Each test isolates a single behaviour and uses small,
+hand-built inputs where the correct output is known in advance, so a failure
+points directly at what broke. Each test follows Arrange–Act–Assert: build known
+inputs, run the engine, assert both the number of breaks and the type of the
+break produced.
+
+**Why it matters**
+Automated tests replace eyeballing console output by hand. They let the engine be
+changed or refactored with confidence — if a change breaks any of the four
+behaviours, the relevant test fails immediately and names the discrepancy
+(e.g. "expected 1 but was 0"), instead of the bug going unnoticed until it
+reaches real data.
+
+**Future work**
+As the engine gains tolerance matching, timing-break handling, and one-to-many
+matching, each new behaviour should get its own test. Edge cases worth adding:
+empty inputs on both sides, duplicate ids within one source, and malformed-row
+handling end to end through `CsvReader`.
