@@ -1,0 +1,61 @@
+# Reconciliation Engine
+
+A Java tool that compares two sets of financial transactions and reports the discrepancies ("breaks") between them.
+
+## The Problem
+
+In finance, the same set of transactions is often recorded independently by two parties — for example an internal ledger and a counterparty statement. Both should tell the same story. Where they disagree, the discrepancy is called a **break** and must be investigated. This is core, daily work in custody and asset-servicing operations. This engine automates that comparison: it ingests two transaction sources, matches them by ID, and reports every break.
+
+## What It Does
+
+- Reads transactions from two CSV files
+- Matches them by transaction ID using a hash-based index (O(n), not O(n²))
+- Detects three kinds of break:
+    - **Value mismatch** — same ID on both sides, but the amount or date differs
+    - **Missing from B** — a transaction in source A with no counterpart in B
+    - **Missing from A** — a transaction in source B with no counterpart in A
+- Handles malformed CSV rows gracefully — bad rows are collected and reported, not crashed on
+- Uses `BigDecimal` for exact monetary values and `LocalDate` for dates
+- Covered by JUnit unit tests for every break type
+
+## How to Run
+
+Requires Java 21+ and Maven.
+
+```bash
+git clone https://github.com/christiankoomson11/reconciliation_engine.git
+cd reconciliation_engine
+mvn compile
+mvn exec:java -Dexec.mainClass="com.reconciliation.Main"
+```
+
+Run the tests with:
+
+```bash
+mvn test
+```
+
+## Example Output
+
+Given a `ledger_a.csv` and `ledger_b.csv` with two matching transactions and three discrepancies:
+
+## Design Highlights
+
+- **Exact money:** amounts use `BigDecimal`, compared with `compareTo`, so formatting differences like `500.0` vs `500.00` don't produce phantom breaks.
+- **Efficient matching:** each source is indexed in a `HashMap` by ID, making lookups O(1) and the whole reconciliation O(n) rather than the O(n²) of nested loops.
+- **Immutable domain model:** `Transaction` and `Break` are immutable, reflecting that they are historical records that should never change after creation.
+- **Resilient input handling:** the reader isolates malformed rows and reports them rather than aborting the run.
+
+Full reasoning for every decision is in [DESIGN.md](DESIGN.md).
+
+## Tech Stack
+
+Java 21, Maven, JUnit 5.
+
+## Future Work
+
+v1 matches on exact transaction ID only. Planned next steps:
+- **Tolerance matching** — treat amounts within a small threshold (e.g. rounding differences) as matches
+- **Timing breaks** — handle the same trade settling a day apart on each side
+- **One-to-many matching** — one payment on one side corresponding to several line items on the other
+- **REST API** — expose the engine over HTTP (Spring Boot)
