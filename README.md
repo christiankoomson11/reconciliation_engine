@@ -7,7 +7,7 @@ A Java tool that compares two sets of financial transactions and reports the dis
 In finance, the same set of transactions is often recorded independently by two parties — for example an internal ledger and a counterparty statement. Both should tell the same story. Where they disagree, the discrepancy is called a **break** and must be investigated. This is core, daily work in custody and asset-servicing operations. This engine automates that comparison: it ingests two transaction sources, matches them by ID, and reports every break.
 
 ## What It Does
-
+- Exposes reconciliation as a REST API — returns breaks as JSON over HTTP (Spring Boot)
 - Reads transactions from two CSV files
 - Matches them by transaction ID using a hash-based index (O(n), not O(n²))
 - Detects three kinds of break:
@@ -27,6 +27,29 @@ git clone https://github.com/christiankoomson11/reconciliation_engine.git
 cd reconciliation_engine
 mvn compile
 mvn exec:java -Dexec.mainClass="com.reconciliation.Main"
+```
+## Running the API
+
+The engine is also exposed as a REST endpoint via Spring Boot.
+
+Start the application:
+
+```bash
+mvn spring-boot:run
+```
+
+Then call the reconcile endpoint:
+
+GET https://localhost:8080/reconcile
+
+It reads `ledger_a.csv` and `ledger_b.csv` from the project root, runs the reconciliation, and returns the breaks as JSON:
+
+```json
+[
+  { "transactionId": "TXN1002", "type": "VALUE_MISMATCH", "detail": "A: 120.50 on 2026-06-02 vs B: 125.50 on 2026-06-02" },
+  { "transactionId": "TXN1003", "type": "MISSING_FROM_B", "detail": "Present in A, missing in B" },
+  { "transactionId": "TXN1004", "type": "MISSING_FROM_A", "detail": "Present in B, missing in A" }
+]
 ```
 
 Run the tests with:
@@ -50,7 +73,7 @@ Full reasoning for every decision is in [DESIGN.md](DESIGN.md).
 
 ## Tech Stack
 
-Java 21, Maven, JUnit 5.
+Java 21, Maven, JUnit 5., SpringBoot
 
 ## Future Work
 
@@ -59,3 +82,6 @@ v1 matches on exact transaction ID only. Planned next steps:
 - **Timing breaks** — handle the same trade settling a day apart on each side
 - **One-to-many matching** — one payment on one side corresponding to several line items on the other
 - **REST API** — expose the engine over HTTP (Spring Boot)
+
+After v2
+- Since the endpoint currently reads fixed files, the next step is to add file uploads.
