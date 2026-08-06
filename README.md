@@ -20,14 +20,15 @@ In finance, the same set of transactions is often recorded independently by two 
 
 ## How to Run
 
-Requires Java 21+ and Maven.
+Requires Java 21+.
 
-```bash
-git clone https://github.com/christiankoomson11/reconciliation_engine.git
-cd reconciliation_engine
-mvn compile
-mvn exec:java -Dexec.mainClass="com.reconciliation.Main"
-```
+Clone the repo and open it in IntelliJ IDEA (or any IDE with Maven support). Let Maven import the dependencies, then:
+
+- **Console version:** run `Main.java`
+- **REST API:** run `ReconciliationApiApplication.java`, then visit `http://localhost:8080/reconcile` in a browser
+
+Run the tests from the IDE, or via the Maven panel → Lifecycle → `test`.
+
 ## Running the API
 
 The engine is also exposed as a REST endpoint via Spring Boot.
@@ -37,7 +38,8 @@ Start the application:
 ```bash
 mvn spring-boot:run
 ```
-
+Or open the project in IntelliJ and run ReconciliationApiApplication (for the API)
+or Main (for the console version)
 Then call the reconcile endpoint:
 
 GET https://localhost:8080/reconcile
@@ -58,10 +60,6 @@ Run the tests with:
 mvn test
 ```
 
-## Example Output
-
-Given a `ledger_a.csv` and `ledger_b.csv` with two matching transactions and three discrepancies:
-
 ## Design Highlights
 
 - **Exact money:** amounts use `BigDecimal`, compared with `compareTo`, so formatting differences like `500.0` vs `500.00` don't produce phantom breaks.
@@ -73,7 +71,7 @@ Full reasoning for every decision is in [DESIGN.md](DESIGN.md).
 
 ## Tech Stack
 
-Java 21, Maven, JUnit 5., SpringBoot
+Java 21+, Maven, JUnit 5, Spring Boot
 
 ## Future Work
 
@@ -81,7 +79,5 @@ v1 matches on exact transaction ID only. Planned next steps:
 - **Tolerance matching** — treat amounts within a small threshold (e.g. rounding differences) as matches
 - **Timing breaks** — handle the same trade settling a day apart on each side
 - **One-to-many matching** — one payment on one side corresponding to several line items on the other
-- **REST API** — expose the engine over HTTP (Spring Boot)
-
 After v2
 - Since the endpoint currently reads fixed files, the next step is to add file uploads.
